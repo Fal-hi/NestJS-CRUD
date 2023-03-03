@@ -1,0 +1,2 @@
+1:1, user_id, id, customers, users
+1:N, id, category_id, product_category, products
