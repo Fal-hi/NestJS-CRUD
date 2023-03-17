@@ -25,8 +25,17 @@ export class ProductService {
     });
   }
 
-  async findProductById(id: number): Promise<products> {
-    return await this.productModel.findByPk<products>(id);
+  async findProductById(id: number): Promise<any> {
+    // return await this.productModel.findByPk<products>(id);
+    console.log(id);
+    const data = await this.productModel.findOne({
+      include: 'product_category',
+      raw: true,
+      where: {
+        id: id,
+      },
+    });
+    return data;
   }
 
   async findProductByName(name: string): Promise<products> {

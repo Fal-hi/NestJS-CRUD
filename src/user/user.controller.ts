@@ -8,12 +8,14 @@ import {
   ParseIntPipe,
   Body,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UserService } from './user.service';
 import { CreateUser, UpdateUser } from './user';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from 'src/auth/auth.service';
+import { users } from '../../models/users';
 
 @Controller('users')
 export class UserController {
@@ -40,6 +42,11 @@ export class UserController {
     } catch (error) {
       return error;
     }
+  }
+
+  @Get('pagination')
+  async findAll(@Query('entry') entry: number, @Query('page') page: number) {
+    return this.userService.findAll(entry, page);
   }
 
   @Get()

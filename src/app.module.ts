@@ -17,6 +17,7 @@ import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthController } from './auth/auth.controller';
+import { PaginateModule } from 'nestjs-sequelize-paginate';
 
 @Module({
   imports: [
@@ -35,6 +36,9 @@ import { AuthController } from './auth/auth.controller';
       secret: 'secretkey',
       signOptions: { expiresIn: '1d' },
     }),
+    PaginateModule.forRoot({
+      url: 'http://localhost:3002',
+    }),
     UserModule,
     CustomerModule,
     OrderModule,
@@ -46,7 +50,7 @@ import { AuthController } from './auth/auth.controller';
   controllers: [AppController, AuthController],
   providers: [AppService],
 })
-export class AppModule implements NestModule {
+export class AppModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(AuthMiddleware)

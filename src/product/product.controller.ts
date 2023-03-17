@@ -10,6 +10,9 @@ import {
   UploadedFile,
   Req,
   Res,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -74,9 +77,10 @@ export class ProductController {
   async findAllProducts() {
     try {
       const product = await this.productService.findAllProducts();
+      const data = product.map((p) => p.dataValues);
       return {
         status: HttpStatus.FOUND,
-        data: product,
+        data: data,
       };
     } catch (error) {
       return {
@@ -138,7 +142,16 @@ export class ProductController {
   async updateProduct(
     @Param('id') id: number,
     @Body() updateProductDto: UpdateProductDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 2000000 }),
+          new FileTypeValidator({ fileType: /(jgp|jpeg|png|gif)$/ }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    file: Express.Multer.File,
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -148,6 +161,14 @@ export class ProductController {
         filename = file.filename;
       }
       const product = await this.productService.findProductById(id);
+
+      if (product === null) {
+        return {
+          status: 'Not Found',
+          message: 'Product doesnt exist',
+        };
+      }
+
       const oldImageProduct = product.image; // image lama
       const url = oldImageProduct.split('/'); // ['http:','','localhost:3000','products','uploads','image_280577232.jpg']
       const imageFile = url[url.length - 1]; // image_280577232.jpg
@@ -158,31 +179,31 @@ export class ProductController {
         `${imageFile}`,
       ); // D:\nestjs\nestexample\uploads\image_189665793.jpg
 
-      const finalImageUrl = `${req.protocol}://${req.get(
-        'host',
-      )}/products/uploads/${filename}`; // http://localhost:3000/products/uploads/image_262928084.jpg,
+      let finalImageUrl: string;
 
-      if (product) {
+      if (file || req.file) {
         if (fs.existsSync(imagesPath)) {
           fs.unlink(imagesPath, async (err) => {
             if (err) return err;
-            const result = await product.update(
-              {
-                ...updateProductDto,
-                image: finalImageUrl,
-              },
-              {
-                where: { id },
-              },
-            );
-            return res.status(HttpStatus.ACCEPTED).send({
-              status: HttpStatus.ACCEPTED,
-              message: 'Successfully updated data',
-              data: result,
-            });
           });
         }
+        finalImageUrl = `${req.protocol}://${req.get(
+          'host',
+        )}/products/uploads/${filename}`; // http://localhost:3000/products/uploads/image_262928084.jpg,
+      } else {
+        finalImageUrl = oldImageProduct;
       }
+
+      const result = await this.productService.updateProduct(id, {
+        ...updateProductDto,
+        image: finalImageUrl,
+      });
+
+      return res.status(HttpStatus.ACCEPTED).send({
+        status: HttpStatus.ACCEPTED,
+        message: 'Successfully updated data',
+        data: result,
+      });
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -194,18 +215,37 @@ export class ProductController {
   @Delete('delete/:id')
   async removeProduct(@Param('id') id: number) {
     try {
-      const product = await this.productService.removeProduct(id);
-      if (product) {
-        return {
-          status: HttpStatus.OK,
-          message: 'Successfully deleted product',
-        };
-      } else {
+      const product = await this.productService.findProductById(id);
+
+      if (!product) {
         return {
           status: HttpStatus.NOT_FOUND,
           message: 'Product not found',
         };
       }
+
+      const oldImageProduct = product.image; // image lama
+      const url = oldImageProduct.split('/'); // ['http:','','localhost:3000','products','uploads','image_280577232.jpg']
+      const imageFile = url[url.length - 1]; // image_280577232.jpg
+      const imagesPath = path.resolve(
+        __dirname,
+        '../../..',
+        'uploads/',
+        `${imageFile}`,
+      ); // D:\nestjs\nestexample\uploads\image_189665793.jpg
+
+      if (fs.existsSync(imagesPath)) {
+        fs.unlink(imagesPath, async (err) => {
+          if (err) return err;
+        });
+      }
+
+      await this.productService.removeProduct(id);
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Successfully deleted product',
+      };
     } catch (error) {
       return {
         status: HttpStatus.NOT_FOUND,

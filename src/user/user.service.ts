@@ -11,6 +11,32 @@ export class UserService {
     return await this.userModel.create(createUser);
   }
 
+  async findAll(entry: any, page: any) {
+    const from = (page - 1) * entry;
+    const totalData = await users.count();
+    const usersRow = await users.findAll({
+      limit: entry,
+      offset: from,
+
+      order: [['username', 'ASC']],
+    });
+
+    const totalPage = Math.ceil(totalData / entry);
+
+    const result = {
+      usersRow: usersRow,
+      page,
+      rows: entry,
+      totalData,
+
+      totalPage,
+      from: from + 1,
+      to: +from + usersRow.length,
+    };
+
+    return result;
+  }
+
   async getUsers(): Promise<users[]> {
     return await this.userModel.findAll<users>();
   }
